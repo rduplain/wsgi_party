@@ -1,3 +1,5 @@
+"""A hack with good intentions: build URLs across WSGI applications."""
+
 import copy
 
 from flask import Flask, abort, request
@@ -8,49 +10,91 @@ from werkzeug.wsgi import DispatcherMiddleware
 
 
 class DrinkingBuddy(object):
+    """Mixin for registration & message passing."""
+
     def party(self, request):
+        """Mount this view function at '/invite/' script path."""
         if hasattr(self, 'on_party'):
+            # Hook implementations here. Be sure to 404 to outside world.
             self.on_party(request.environ)
+        # Dispatcher loads itself into the environ.
         self.dispatcher = request.environ.get('mc_dispatcher')
+        # Every participating application adds itself.
         self.dispatcher.attendees.append(self)
+        # Bind to a list of all participating applications.
         self.partiers = self.dispatcher.attendees
+        # Return something.
         return repr(self)
 
     @property
     def buddies(self):
+        """Provide a list binding all participating applications."""
         return [buddy for buddy in self.partiers if buddy is not self]
 
     def receive(self, sender, message):
+        """Receive a message from another application.
+
+        All applications are locally bound in the same Python process, and this
+        message passing occurs in a blocking synchronous call.  This provides
+        each application a means to get information from each other application
+        bound in the same process.
+
+        We could just expose methods, but a message passing scheme is more
+        generic.  I have no particular opinions about messaging, and here model
+        message as a key-value tuple -- that is, an item in a dictionary.  The
+        key is a message type, and the value is a pack of arguments to pass
+        downstream -- a dumb protocol.  The response is a key-value tuple with
+        the same message key (to keep symmetric send/receive code) and the
+        return value of the implementation's handler.
+
+        This is a poor man's RPC, but in a local process.  Being local, there
+        is no concern for serialization.  Should we structure this with an
+        existing RPC?  Make suggestions.
+        """
         if message == ('ping', None):
+            # The "Hello, world!" of message passing.
             return ('pong', None)
         if hasattr(self, 'on_receive'):
+            # Hook protocol implementations here.
             return self.on_receive(sender, message)
+        # No handler, send a None response.
         return (message[0], None)
 
     def send(self, sender, message):
+        """Send a message. Here, alias of receive."""
         if hasattr(self, 'on_send'):
+            # Provide a separate hook on send.
             self.on_send(sender, message)
+        # Just an alias. Could rid of this method entirely.
         return self.receive(sender, message)
 
 
 class FlaskDrunk(Flask, DrinkingBuddy):
+    """Subclass of Flask which builds URLs across instances via the party."""
+
     def __init__(self, import_name, *args, **kwargs):
         super(FlaskDrunk, self).__init__(import_name, *args, **kwargs)
+        # Bootstrap, turn the view function into a 404 after registering.
         self.pregame = True
         self.add_url_rule('/invite/', endpoint='party', view_func=self.join_party)
+        # This dispatcher hook is not currently used, but is potentially useful.
         self.dispatcher = None
+        # The list of neighbors for sending/receiving messages.
         self.partiers = []
 
     def on_party(self, environ):
+        """Hook to expose party registration only once, to dispatcher."""
         if not self.pregame:
             # This route does not exist at the HTTP level.
             abort(404)
         self.pregame = False
 
     def join_party(self, request=request):
+        """A simple wrapper to support Flask's request pattern."""
         return self.party(request)
 
     def on_receive(self, sender, message):
+        """Message receive hook to request URLs across instances."""
         if message[0] == 'url':
             try:
                 endpoint, values = message[1]
@@ -59,6 +103,15 @@ class FlaskDrunk(Flask, DrinkingBuddy):
                 return ('url', None)
 
     def url_for(self, endpoint, use_buddies=True, **values):
+        """Build a URL, asking other applications if BuildError occurs locally.
+
+        This implementation is a fork of :func:`~flask.helpers.url_for`, where
+        the implementation you see here works around Flask's context-locals to
+        provide URL routing specific to ``self``.  Then it implements the
+        wsgi_party url_for requests across Flask applications loaded into the
+        dispatcher.
+        """
+        # Some values are popped; keep an original copy for re-requesting URL.
         original_values = copy.deepcopy(values)
         blueprint_name = request.blueprint
         if endpoint[:1] == '.':
@@ -75,6 +128,7 @@ class FlaskDrunk(Flask, DrinkingBuddy):
             rv = url_adapter.build(endpoint, values, method=method,
                                    force_external=external)
         except BuildError:
+            # We do not have this URL, ask our buddies.
             if not use_buddies:
                 raise
             for buddy in self.buddies:
@@ -91,11 +145,14 @@ class FlaskDrunk(Flask, DrinkingBuddy):
             return self.url_for(endpoint, use_buddies=use_buddies, **values)
 
     def buddy_url_for(self, buddy, endpoint, **values):
+        """Ask a drinking buddy for a URL matching this endpoint."""
         message = 'url', (endpoint, values)
-        return buddy.receive(self, message)[1]
+        return buddy.send(self, message)[1]
 
 
 class MC(DispatcherMiddleware):
+    """DispatcherMiddleware which implements our bootstrapping hack."""
+
     def __init__(self, app, mounts=None, base_url=None):
         super(MC, self).__init__(app, mounts=mounts)
         self.base_url = base_url
@@ -107,6 +164,7 @@ class MC(DispatcherMiddleware):
 
     @property
     def applications(self):
+        """A list of all mounted applications, partiers or not."""
         return [self.app] + self.mounts.values()
 
 
