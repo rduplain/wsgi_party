@@ -7,31 +7,50 @@ from werkzeug.urls import url_quote
 from werkzeug.wsgi import DispatcherMiddleware
 
 
-class FlaskDrunk(Flask):
-    def __init__(self, import_name, *args, **kwargs):
-        super(FlaskDrunk, self).__init__(import_name, *args, **kwargs)
-        self.pregame = True
-        self.add_url_rule('/invite/', endpoint='party', view_func=self.party)
-        self.dispatcher = None
-        self.drunks = []
-
-    def party(self):
-        if not self.pregame:
-            # This route does not exist at the HTTP level.
-            abort(404)
+class DrinkingBuddy(object):
+    def party(self, request):
+        if hasattr(self, 'on_party'):
+            self.on_party(request.environ)
         self.dispatcher = request.environ.get('mc_dispatcher')
         self.dispatcher.attendees.append(self)
-        self.drunks = self.dispatcher.attendees
-        self.pregame = False
+        self.partiers = self.dispatcher.attendees
         return repr(self)
 
     @property
     def buddies(self):
-        return [buddy for buddy in self.drunks if buddy is not self]
+        return [buddy for buddy in self.partiers if buddy is not self]
 
     def receive(self, sender, message):
         if message == ('ping', None):
             return ('pong', None)
+        if hasattr(self, 'on_receive'):
+            return self.on_receive(sender, message)
+        return (message[0], None)
+
+    def send(self, sender, message):
+        if hasattr(self, 'on_send'):
+            self.on_send(sender, message)
+        return self.receive(sender, message)
+
+
+class FlaskDrunk(Flask, DrinkingBuddy):
+    def __init__(self, import_name, *args, **kwargs):
+        super(FlaskDrunk, self).__init__(import_name, *args, **kwargs)
+        self.pregame = True
+        self.add_url_rule('/invite/', endpoint='party', view_func=self.join_party)
+        self.dispatcher = None
+        self.partiers = []
+
+    def on_party(self, environ):
+        if not self.pregame:
+            # This route does not exist at the HTTP level.
+            abort(404)
+        self.pregame = False
+
+    def join_party(self, request=request):
+        return self.party(request)
+
+    def on_receive(self, sender, message):
         if message[0] == 'url':
             try:
                 endpoint, values = message[1]
@@ -79,12 +98,16 @@ class FlaskDrunk(Flask):
 class MC(DispatcherMiddleware):
     def __init__(self, app, mounts=None, base_url=None):
         super(MC, self).__init__(app, mounts=mounts)
-        self.base_url = None
+        self.base_url = base_url
         self.attendees = []
         environ = create_environ(path='/invite/', base_url=self.base_url)
         environ['mc_dispatcher'] = self
-        for application in [app] + mounts.values():
+        for application in self.applications:
             run_wsgi_app(application, environ)
+
+    @property
+    def applications(self):
+        return [self.app] + self.mounts.values()
 
 
 # Demonstrate.
