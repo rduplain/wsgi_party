@@ -128,11 +128,12 @@ template = """
   <title>Demo: Cross-application URL building in Flask.</title>
 </head>
 <body>
-  <p>You are in the root application.
+  <p>You are in the root application.</p>
   <ul>
     <li><a href="%s">Go to application one</a></li>
     <li><a href="%s">Go to application two</a></li>
   </ul>
+  <p>Source code is <a href="http://github.com/rduplain/wsgi_party">here</a>.</p>
 </body>
 </html>
 """
@@ -160,5 +161,8 @@ application = MC(root, {
 
 
 if __name__ == '__main__':
+    import os
     from werkzeug.serving import run_simple
-    run_simple('localhost', 5000, application, use_reloader=True)
+    # Bind to PORT if defined, otherwise default to 5000.
+    port = int(os.environ.get('PORT', 5000))
+    run_simple('0.0.0.0', port, application, use_reloader=True)
