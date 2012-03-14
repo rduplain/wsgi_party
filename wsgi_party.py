@@ -25,7 +25,6 @@ class FlaskDrunk(Flask):
         return [buddy for buddy in self.drunks if buddy is not self]
 
     def receive(self, sender, message):
-        print message
         if message == ('ping', None):
             return ('pong', None)
         if message[0] == 'url':
@@ -118,11 +117,13 @@ def root_index():
 
 @one.route('/', endpoint='one:index')
 def one_index():
-    return 'This is app "one".'
+    url = one.url_for('two:index')
+    return 'This is app one. <a href="%s">Go to two.</a>' % url
 
 @two.route('/', endpoint='two:index')
 def two_index():
-    return 'This is app "two".'
+    url = two.url_for('one:index')
+    return 'This is app two. <a href="%s">Go to one.</a>' % url
 
 application = MC(root, {
     '/one': one,
