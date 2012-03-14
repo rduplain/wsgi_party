@@ -1,6 +1,10 @@
+import copy
+
 from flask import Flask, request
-from werkzeug.wsgi import DispatcherMiddleware
+from werkzeug.routing import BuildError
 from werkzeug.test import create_environ, run_wsgi_app
+from werkzeug.urls import url_quote
+from werkzeug.wsgi import DispatcherMiddleware
 
 
 class FlaskDrunk(Flask):
@@ -21,8 +25,51 @@ class FlaskDrunk(Flask):
         return [buddy for buddy in self.drunks if buddy is not self]
 
     def receive(self, sender, message):
+        print message
         if message == ('ping', None):
             return ('pong', None)
+        if message[0] == 'url':
+            try:
+                endpoint, values = message[1]
+                return ('url', self.my_url_for(endpoint, **values))
+            except BuildError:
+                return ('url', None)
+
+    def url_for(self, endpoint, use_buddies=True, **values):
+        original_values = copy.deepcopy(values)
+        blueprint_name = request.blueprint
+        if endpoint[:1] == '.':
+            if blueprint_name is not None:
+                endpoint = blueprint_name + endpoint
+            else:
+                endpoint = endpoint[1:]
+        external = values.pop('_external', False)
+        anchor = values.pop('_anchor', None)
+        method = values.pop('_method', None)
+        self.inject_url_defaults(endpoint, values)
+        url_adapter = self.create_url_adapter(request)
+        try:
+            rv = url_adapter.build(endpoint, values, method=method,
+                                   force_external=external)
+        except BuildError:
+            if not use_buddies:
+                raise
+            for buddy in self.buddies:
+                rv = self.buddy_url_for(buddy, endpoint, **original_values)
+                if rv is not None:
+                    return rv
+        if anchor is not None:
+            rv += '#' + url_quote(anchor)
+        return rv
+
+    def my_url_for(self, endpoint, use_buddies=False, **values):
+        """Context-locals hurt."""
+        with self.test_request_context():
+            return self.url_for(endpoint, use_buddies=use_buddies, **values)
+
+    def buddy_url_for(self, buddy, endpoint, **values):
+        message = 'url', (endpoint, values)
+        return buddy.receive(self, message)[1]
 
 
 class MC(DispatcherMiddleware):
@@ -45,13 +92,37 @@ root.debug = True
 one.debug = True
 two.debug = True
 
+one.config['APPLICATION_ROOT'] = '/one'
+two.config['APPLICATION_ROOT'] = '/two'
+
+template = """
+<html>
+<head>
+  <title>Demo: Cross-application URL building in Flask.</title>
+</head>
+<body>
+  <p>You are in the root application.
+  <ul>
+    <li><a href="%s">Go to application one</a></li>
+    <li><a href="%s">Go to application two</a></li>
+  </ul>
+</body>
+</html>
+"""
+
 @root.route('/', endpoint='index')
 def root_index():
     if not root.buddies:
         return 'I have no friends.'
-    buddy = root.buddies[0]
-    received = buddy.receive(root, ('ping', None))
-    return 'received %r from %r' % (received, buddy)
+    return template % (root.url_for('one:index'), root.url_for('two:index'))
+
+@one.route('/', endpoint='one:index')
+def one_index():
+    return 'This is app "one".'
+
+@two.route('/', endpoint='two:index')
+def two_index():
+    return 'This is app "two".'
 
 application = MC(root, {
     '/one': one,
