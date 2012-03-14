@@ -29,7 +29,12 @@ class DrinkingBuddy(object):
     @property
     def buddies(self):
         """Provide a list binding all participating applications."""
-        return [buddy for buddy in self.partiers if buddy is not self]
+        return self.sort_buddies([buddy for buddy in self.partiers
+                                  if buddy is not self])
+
+    def sort_buddies(self, buddies):
+        """Hook to provide order of buddies used in passing messages."""
+        return buddies
 
     def receive(self, sender, message):
         """Receive a message from another application.
