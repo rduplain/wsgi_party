@@ -1,6 +1,6 @@
 import copy
 
-from flask import Flask, request
+from flask import Flask, abort, request
 from werkzeug.routing import BuildError
 from werkzeug.test import create_environ, run_wsgi_app
 from werkzeug.urls import url_quote
@@ -10,14 +10,19 @@ from werkzeug.wsgi import DispatcherMiddleware
 class FlaskDrunk(Flask):
     def __init__(self, import_name, *args, **kwargs):
         super(FlaskDrunk, self).__init__(import_name, *args, **kwargs)
+        self.pregame = True
         self.add_url_rule('/invite/', endpoint='party', view_func=self.party)
         self.dispatcher = None
         self.drunks = []
 
     def party(self):
+        if not self.pregame:
+            # This route does not exist at the HTTP level.
+            abort(404)
         self.dispatcher = request.environ.get('mc_dispatcher')
         self.dispatcher.attendees.append(self)
         self.drunks = self.dispatcher.attendees
+        self.pregame = False
         return repr(self)
 
     @property
