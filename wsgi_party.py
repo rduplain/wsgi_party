@@ -103,7 +103,7 @@ class PartylineConnector(object):
         # Partyline dispatcher loads itself into the environ.
         self.partyline = environ.get(self.partyline_key)
         # Every participating application registers itself.
-        self.partyline.connect(self)
+        self.partyline.connect(self.get_partyline_binder(environ))
         # Return something.
         return 'Hello, world!'
 
@@ -112,3 +112,9 @@ class PartylineConnector(object):
         if getattr(self, 'connected_partyline', False):
             raise AlreadyJoinedParty()
         self.connected_partyline = True
+
+    def get_partyline_binder(self, environ):
+        """Provide the partyline with an object to call methods on self."""
+        # TODO: Provide a limited set of methods from self.
+        #       self here will cause pain & suffering upon circular references.
+        return self
