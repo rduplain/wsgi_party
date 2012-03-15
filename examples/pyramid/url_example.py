@@ -1,3 +1,5 @@
+# pip install pyramid waitress
+
 from pyramid.config import Configurator
 
 from pyramid_party import (
