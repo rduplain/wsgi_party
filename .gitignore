@@ -4,6 +4,8 @@ dist
 *.egg-info
 env
 env*
+*.orig
 *.pyc
 *.pyo
+*.rej
 .tox
