@@ -1,8 +1,9 @@
-WSGI Party
-----------
+================================================================
+ WSGI Party: partyline dispatcher for WSGI with good intentions
+================================================================
 
-See this code running here:
-http://vivid-sunset-5564.herokuapp.com/
+This is a collaboration between Ron DuPlain (a Flask core developer) and Chris
+McDonough & Michael Merickel (Pyramid core developers).
 
 Primary use cases:
 

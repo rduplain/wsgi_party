@@ -1,6 +1,5 @@
 """Partyline Dispatcher for WSGI with good intentions."""
 
-# Werkzeug is convenient to get us started. Could remove this dependency.
 from werkzeug.test import create_environ, run_wsgi_app
 from werkzeug.urls import url_quote
 
