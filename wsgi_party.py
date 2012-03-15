@@ -86,9 +86,11 @@ class WSGIParty(object):
 
     def send_invitations(self):
         """Call each application via our partyline connection protocol."""
-        environ = create_environ(path=self.invite_path, base_url=self.base_url)
-        environ[self.partyline_key] = self.operator_class(self)
-        for application in self.applications:
+        operator = self.operator_class(self)
+        for script, application in [('', self.app)] + self.mounts.items():
+            base_url = (self.base_url or '/'.rstrip('/')) + script
+            environ = create_environ(path=self.invite_path, base_url=base_url)
+            environ[self.partyline_key] = operator
             # TODO: Verify/deal with 404 responses from the application.
             run_wsgi_app(application, environ)
 
