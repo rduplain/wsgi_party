@@ -1,4 +1,4 @@
-# pip install pyramid waitress
+# pip install pyramid
 
 from pyramid.config import Configurator
 
@@ -93,7 +93,7 @@ def main_two(global_conf, **settings):
 
 if __name__ == '__main__':
     import os
-    from waitress import serve
+    from werkzeug.serving import run_simple
     from wsgi_party import WSGIParty
 
     base = main_base({})
@@ -106,4 +106,4 @@ if __name__ == '__main__':
 
     # Bind to PORT if defined, otherwise default to 5000.
     port = int(os.environ.get('PORT', 5000))
-    serve(party, host='0.0.0.0', port=port)
+    run_simple('0.0.0.0', port, party, use_reloader=True)
