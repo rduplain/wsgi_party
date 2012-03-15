@@ -100,5 +100,4 @@ class WSGIParty(object):
     def send_all(self, service, payload):
         """Notify all listeners of a service and yield their results."""
         for handler in self.partyline[service]:
-            # first response wins
             yield handler(payload)
