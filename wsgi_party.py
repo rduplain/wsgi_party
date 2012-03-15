@@ -89,19 +89,19 @@ class PartylineConnector(object):
     #: The partyline_key set in :class:`WSGIParty`.
     partyline_key = 'partyline'
 
-    def join_party(self, request):
+    def join_party(self, environ):
         """Mount this view function at '/__invite__/' script path."""
         try:
             # Provide a bootstrapping hook for the partyline.
-            self.before_partyline_join(request.environ)
+            self.before_partyline_join(environ)
         except AlreadyJoinedParty:
             # Do not participate once bootstrapped.
             return
         if hasattr(self, 'on_partyline_join'):
             # Provide a hook when joining the partyline.
-            self.on_partyline_join(request.environ)
+            self.on_partyline_join(environ)
         # Partyline dispatcher loads itself into the environ.
-        self.partyline = request.environ.get(self.partyline_key)
+        self.partyline = environ.get(self.partyline_key)
         # Every participating application registers itself.
         self.partyline.connect(self)
         # Return something.

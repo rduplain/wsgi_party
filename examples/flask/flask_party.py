@@ -10,7 +10,7 @@ class PartylineFlask(Flask, PartylineConnector):
 
     def join_party_wrapper(self, request=request):
         """A simple wrapper to support Flask's request pattern."""
-        return self.join_party(request)
+        return self.join_party(request.environ)
 
 
 # Demonstrate.
