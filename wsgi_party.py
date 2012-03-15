@@ -91,7 +91,6 @@ class WSGIParty(object):
             base_url = (self.base_url or '/'.rstrip('/')) + script
             environ = create_environ(path=self.invite_path, base_url=base_url)
             environ[self.partyline_key] = operator
-            # TODO: Verify/deal with 404 responses from the application.
             run_wsgi_app(application, environ)
 
     @property

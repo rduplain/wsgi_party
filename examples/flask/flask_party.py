@@ -80,13 +80,16 @@ class PartylineFlask(Flask):
 root = PartylineFlask(__name__)
 one = PartylineFlask(__name__)
 two = PartylineFlask(__name__)
+three = Flask(__name__) # Add a non-partyline application.
 
 root.debug = True
 one.debug = True
 two.debug = True
+three.debug = True
 
 one.config['APPLICATION_ROOT'] = '/one'
 two.config['APPLICATION_ROOT'] = '/two'
+three.config['APPLICATION_ROOT'] = '/three'
 
 template = """
 <html>
@@ -120,9 +123,15 @@ def two_index():
     url = two.url_for('one:index')
     return 'This is app two. <a href="%s">Go to one.</a>' % url
 
+@three.route('/', endpoint='three:index')
+def three_index():
+    return 'I do not participate in parties.'
+
+
 application = WSGIParty(root, {
     '/one': one,
     '/two': two,
+    '/three': three,
 })
 
 
