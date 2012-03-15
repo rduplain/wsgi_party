@@ -55,6 +55,11 @@ class DrinkingBuddy(object):
         This is a poor man's RPC, but in a local process.  Being local, there
         is no concern for serialization.  Should we structure this with an
         existing RPC?  Make suggestions.
+
+        If we are keeping scope to a single WSGI process and have no intention
+        of using remote objects, the most straightforward design would be to
+        use Python objects exposing methods, either e.g. Flask instances or a
+        proxy object (which would expose only selected methods).
         """
         if message == ('ping', None):
             # The "Hello, world!" of message passing.
