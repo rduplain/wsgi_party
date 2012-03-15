@@ -1,4 +1,10 @@
-"""Partyline Dispatcher for WSGI with good intentions."""
+# -*- coding: utf-8 -*-
+"""
+    Partyline dispatcher for WSGI with good intentions.
+
+    :copyright: (c) 2012 by Ron DuPlain.
+    :license: BSD, see LICENSE for more details.
+"""
 
 from werkzeug.test import create_environ, run_wsgi_app
 from werkzeug.urls import url_quote
