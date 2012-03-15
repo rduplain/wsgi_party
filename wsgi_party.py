@@ -9,6 +9,26 @@
 from werkzeug.test import create_environ, run_wsgi_app
 
 
+class PartylineException(Exception):
+    """Base exception class for wsgi_party."""
+
+
+class PartylineOperator(object):
+    """Expose an API for connecting a listener to the WSGI partyline.
+
+    The WSGI application uses this object to communicate with the party.
+    """
+
+    def __init__(self, dispatcher):
+        self.dispatcher = dispatcher
+
+    def connect(self, service, handler):
+        self.dispatcher.register(service, handler)
+
+    def send_all(self, service, payload):
+        self.dispatcher.send_all(service, payload)
+
+
 class WSGIParty(object):
     """Dispatcher for cross-application communication.
 
@@ -82,27 +102,3 @@ class WSGIParty(object):
         for handler in self.partyline[service]:
             # first response wins
             yield handler(payload)
-
-
-class PartylineOperator(object):
-    """Expose an API for connecting a listener to the WSGI partyline.
-
-    The WSGI application uses this object to communicate with the party.
-    """
-
-    def __init__(self, dispatcher):
-        self.dispatcher = dispatcher
-
-    def connect(self, service, handler):
-        self.dispatcher.register(service, handler)
-
-    def send_all(self, service, payload):
-        self.dispatcher.send_all(service, payload)
-
-
-class PartylineException(Exception):
-    """Base exception class for wsgi_party."""
-
-
-class AlreadyJoinedParty(PartylineException):
-    """For bootstrapping; join only once."""
