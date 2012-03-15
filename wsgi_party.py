@@ -31,8 +31,8 @@ class WSGIParty(object):
         #: Base URL for use in environ. Defaults to None.
         self.base_url = base_url
 
-        #: A list of participating applications.
-        self.partyline = []
+        # A dict of service -> handler mappings.
+        self.partyline = {}
 
         self.send_invitations()
 
@@ -60,7 +60,7 @@ class WSGIParty(object):
     def send_invitations(self):
         """Call each application via our partyline connection protocol."""
         environ = create_environ(path=self.invite_path, base_url=self.base_url)
-        environ[self.partyline_key] = self
+        environ[self.partyline_key] = PartylineOperator(self)
         for application in self.applications:
             # TODO: Verify/deal with 404 responses from the application.
             run_wsgi_app(application, environ)
@@ -70,9 +70,31 @@ class WSGIParty(object):
         """A list of all mounted applications, matching our protocol or not."""
         return [self.app] + self.mounts.values()
 
-    def connect(self, application):
-        """Connect application to the partyline for cross-app communication."""
-        self.partyline.append(application)
+    def connect(self, service, handler):
+        """Register a handler for a given service."""
+        self.partyline.set_default(service, []).append(handler)
+
+    def send_all(self, service, payload):
+        """Notify all listeners of a service and yield their results."""
+        for handler in self.partyline[service]:
+            # first response wins
+            yield handler(payload)
+
+
+class PartylineOperator(object):
+    """Expose an API for connecting an application to the WSGI party.
+
+    The WSGI application uses this object to communicate with the party.
+    """
+
+    def __init__(self, dispatcher):
+        self.dispatcher = dispatcher
+
+    def connect(self, service, handler):
+        self.dispatcher.register(service, handler)
+
+    def send_all(self, service, payload):
+        self.dispatcher.send_all(service, payload)
 
 
 class PartylineException(Exception):
@@ -83,17 +105,17 @@ class AlreadyJoinedParty(PartylineException):
     """For bootstrapping."""
 
 
-class PartylineConnector(object):
+class PartylineHelper(object):
     """Mixin for registration & message passing."""
 
     #: The partyline_key set in :class:`WSGIParty`.
     partyline_key = 'partyline'
 
-    def join_party(self, environ):
+    def join_party(self, environ, service, handler):
         """Mount this view function at '/__invite__/' script path."""
         try:
             # Provide a bootstrapping hook for the partyline.
-            self.before_partyline_join(environ)
+            self.before_partyline_join(environ, service)
         except AlreadyJoinedParty:
             # Do not participate once bootstrapped.
             return
@@ -103,7 +125,7 @@ class PartylineConnector(object):
         # Partyline dispatcher loads itself into the environ.
         self.partyline = environ.get(self.partyline_key)
         # Every participating application registers itself.
-        self.partyline.connect(self.get_partyline_binder(environ))
+        self.partyline.connect(service, handler)
         # Return something.
         return 'Hello, world!'
 
@@ -112,9 +134,3 @@ class PartylineConnector(object):
         if getattr(self, 'connected_partyline', False):
             raise AlreadyJoinedParty()
         self.connected_partyline = True
-
-    def get_partyline_binder(self, environ):
-        """Provide the partyline with an object to call methods on self."""
-        # TODO: Provide a limited set of methods from self.
-        #       self here will cause pain & suffering upon circular references.
-        return self
