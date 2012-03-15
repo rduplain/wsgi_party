@@ -15,7 +15,7 @@ def party_invite(event):
         name = payload['name']
         kwargs = payload.get('kwargs', {})
         query = payload.get('query', ())
-        return request.route_url(name, _query=query, **kwargs)
+        return request.route_path(name, _query=query, **kwargs)
     party.connect('url', _gen_url)
 
 def view_base(request):
@@ -40,7 +40,8 @@ def view_one(request):
     if not urls:
         body = 'I have no friends. :-('
     else:
-        body = 'Please visit <a href="{0}">App Two</a>'.format(urls[0])
+        url = list(urls)[0]
+        body = 'Please visit <a href="{0}">App Two</a>'.format(url)
     response.body = BODY % {'app': 'One', 'body': body}
     return response
 
@@ -52,7 +53,8 @@ def view_two(request):
     if not urls:
         body = 'I have no friends. :-('
     else:
-        body = 'Please visit <a href="{0}">App One</a>'.format(urls[0])
+        url = list(urls)[0]
+        body = 'Please visit <a href="{0}">App One</a>'.format(url)
     response.body = BODY % {'app': 'Two', 'body': body}
     return response
 
