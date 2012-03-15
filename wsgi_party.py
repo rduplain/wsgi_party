@@ -7,92 +7,108 @@
 """
 
 from werkzeug.test import create_environ, run_wsgi_app
-from werkzeug.urls import url_quote
 
 
-class MC(DispatcherMiddleware):
-    """DispatcherMiddleware which implements our bootstrapping hack."""
+class WSGIParty(object):
+    """Dispatcher for cross-application communication.
+
+    Originally based on :class:`~werkzeug.wsgi.DispatcherMiddleware`.
+    """
+
+    #: URL path to the registration URL of participating applications.
+    invite_path = '/__invite__/'
+
+    #: Key in environ with reference to this dispatcher.
+    partyline_key = 'partyline'
 
     def __init__(self, app, mounts=None, base_url=None):
-        super(MC, self).__init__(app, mounts=mounts)
+        #: Application mounted at root.
+        self.app = app
+
+        #: Applications mounted at sub URLs, with sub-URL as the key.
+        self.mounts = mounts or {}
+
+        #: Base URL for use in environ. Defaults to None.
         self.base_url = base_url
-        self.attendees = []
-        environ = create_environ(path='/invite/', base_url=self.base_url)
-        environ['mc_dispatcher'] = self
+
+        #: A list of participating applications.
+        self.partyline = []
+
+        self.send_invitations()
+
+    def __call__(self, environ, start_response):
+        """Dispatch WSGI call to a mounted application, default to root app."""
+        # TODO: Consider supporting multiple applications mounted at root URL.
+        #       Then, consider providing priority of mounted applications.
+        #       One application could explicitly override some routes of other.
+        script = environ.get('PATH_INFO', '')
+        path_info = ''
+        while '/' in script:
+            if script in self.mounts:
+                app = self.mounts[script]
+                break
+            items = script.split('/')
+            script = '/'.join(items[:-1])
+            path_info = '/%s%s' % (items[-1], path_info)
+        else:
+            app = self.mounts.get(script, self.app)
+        original_script_name = environ.get('SCRIPT_NAME', '')
+        environ['SCRIPT_NAME'] = original_script_name + script
+        environ['PATH_INFO'] = path_info
+        return app(environ, start_response)
+
+    def send_invitations(self):
+        """Call each application via our partyline connection protocol."""
+        environ = create_environ(path=self.invite_path, base_url=self.base_url)
+        environ[self.partyline_key] = self
         for application in self.applications:
+            # TODO: Verify/deal with 404 responses from the application.
             run_wsgi_app(application, environ)
 
     @property
     def applications(self):
-        """A list of all mounted applications, partiers or not."""
+        """A list of all mounted applications, matching our protocol or not."""
         return [self.app] + self.mounts.values()
 
+    def connect(self, application):
+        """Connect application to the partyline for cross-app communication."""
+        self.partyline.append(application)
 
-class DrinkingBuddy(object):
+
+class PartylineException(Exception):
+    """Base exception class for wsgi_party."""
+
+
+class AlreadyJoinedParty(PartylineException):
+    """For bootstrapping."""
+
+
+class PartylineConnector(object):
     """Mixin for registration & message passing."""
 
-    def party(self, request):
-        """Mount this view function at '/invite/' script path."""
-        if hasattr(self, 'on_party'):
-            # Hook implementations here. Be sure to 404 to outside world.
-            self.on_party(request.environ)
-        # Dispatcher loads itself into the environ.
-        self.dispatcher = request.environ.get('mc_dispatcher')
-        # Every participating application adds itself.
-        self.dispatcher.attendees.append(self)
-        # Bind to a list of all participating applications.
-        self.partiers = self.dispatcher.attendees
+    #: The partyline_key set in :class:`WSGIParty`.
+    partyline_key = 'partyline'
+
+    def join_party(self, request):
+        """Mount this view function at '/__invite__/' script path."""
+        try:
+            # Provide a bootstrapping hook for the partyline.
+            self.before_partyline_join(request.environ)
+        except AlreadyJoinedParty:
+            # Do not participate once bootstrapped.
+            return
+        if hasattr(self, 'on_partyline_join'):
+            # Provide a hook when joining the partyline.
+            self.on_partyline_join(request.environ)
+        # Partyline dispatcher loads itself into the environ.
+        self.partyline = request.environ.get(self.partyline_key)
+        # Every participating application registers itself.
+        self.partyline.connect(self)
         # Return something.
-        return repr(self)
+        return 'Hello, world!'
 
-    @property
-    def buddies(self):
-        """Provide a list binding all participating applications."""
-        return self.sort_buddies([buddy for buddy in self.partiers
-                                  if buddy is not self])
-
-    def sort_buddies(self, buddies):
-        """Hook to provide order of buddies used in passing messages."""
-        return buddies
-
-    def receive(self, sender, message):
-        """Receive a message from another application.
-
-        All applications are locally bound in the same Python process, and this
-        message passing occurs in a blocking synchronous call.  This provides
-        each application a means to get information from each other application
-        bound in the same process.
-
-        We could just expose methods, but a message passing scheme is more
-        generic.  I have no particular opinions about messaging, and here model
-        message as a key-value tuple -- that is, an item in a dictionary.  The
-        key is a message type, and the value is a pack of arguments to pass
-        downstream -- a dumb protocol.  The response is a key-value tuple with
-        the same message key (to keep symmetric send/receive code) and the
-        return value of the implementation's handler.
-
-        This is a poor man's RPC, but in a local process.  Being local, there
-        is no concern for serialization.  Should we structure this with an
-        existing RPC?  Make suggestions.
-
-        If we are keeping scope to a single WSGI process and have no intention
-        of using remote objects, the most straightforward design would be to
-        use Python objects exposing methods, either e.g. Flask instances or a
-        proxy object (which would expose only selected methods).
-        """
-        if message == ('ping', None):
-            # The "Hello, world!" of message passing.
-            return ('pong', None)
-        if hasattr(self, 'on_receive'):
-            # Hook protocol implementations here.
-            return self.on_receive(sender, message)
-        # No handler, send a None response.
-        return (message[0], None)
-
-    def send(self, sender, message):
-        """Send a message. Here, alias of receive."""
-        if hasattr(self, 'on_send'):
-            # Provide a separate hook on send.
-            self.on_send(sender, message)
-        # Just an alias. Could rid of this method entirely.
-        return self.receive(sender, message)
+    def before_partyline_join(self, environ):
+        """Connect to partyline or raise an exception."""
+        if getattr(self, 'connected_partyline', False):
+            raise AlreadyJoinedParty()
+        self.connected_partyline = True
