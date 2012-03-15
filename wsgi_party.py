@@ -21,6 +21,9 @@ class WSGIParty(object):
     #: Key in environ with reference to this dispatcher.
     partyline_key = 'partyline'
 
+    #: Class to use as the partyline operator, for connecting listeners.
+    operator_class = PartylineOperator
+
     def __init__(self, app, mounts=None, base_url=None):
         #: Application mounted at root.
         self.app = app
@@ -60,7 +63,7 @@ class WSGIParty(object):
     def send_invitations(self):
         """Call each application via our partyline connection protocol."""
         environ = create_environ(path=self.invite_path, base_url=self.base_url)
-        environ[self.partyline_key] = PartylineOperator(self)
+        environ[self.partyline_key] = self.operator_class(self)
         for application in self.applications:
             # TODO: Verify/deal with 404 responses from the application.
             run_wsgi_app(application, environ)
@@ -82,7 +85,7 @@ class WSGIParty(object):
 
 
 class PartylineOperator(object):
-    """Expose an API for connecting an application to the WSGI party.
+    """Expose an API for connecting a listener to the WSGI partyline.
 
     The WSGI application uses this object to communicate with the party.
     """
@@ -105,7 +108,7 @@ class AlreadyJoinedParty(PartylineException):
     """For bootstrapping."""
 
 
-class PartylineHelper(object):
+class PartylineConnector(object):
     """Mixin for registration & message passing."""
 
     #: The partyline_key set in :class:`WSGIParty`.
