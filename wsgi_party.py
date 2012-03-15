@@ -1,12 +1,26 @@
-"""A hack with good intentions: build URLs across WSGI applications."""
+"""Partyline Dispatcher for WSGI with good intentions."""
 
-import copy
-
-from flask import Flask, abort, request
-from werkzeug.routing import BuildError
+# Werkzeug is convenient to get us started. Could remove this dependency.
 from werkzeug.test import create_environ, run_wsgi_app
 from werkzeug.urls import url_quote
-from werkzeug.wsgi import DispatcherMiddleware
+
+
+class MC(DispatcherMiddleware):
+    """DispatcherMiddleware which implements our bootstrapping hack."""
+
+    def __init__(self, app, mounts=None, base_url=None):
+        super(MC, self).__init__(app, mounts=mounts)
+        self.base_url = base_url
+        self.attendees = []
+        environ = create_environ(path='/invite/', base_url=self.base_url)
+        environ['mc_dispatcher'] = self
+        for application in self.applications:
+            run_wsgi_app(application, environ)
+
+    @property
+    def applications(self):
+        """A list of all mounted applications, partiers or not."""
+        return [self.app] + self.mounts.values()
 
 
 class DrinkingBuddy(object):
@@ -77,160 +91,3 @@ class DrinkingBuddy(object):
             self.on_send(sender, message)
         # Just an alias. Could rid of this method entirely.
         return self.receive(sender, message)
-
-
-class FlaskDrunk(Flask, DrinkingBuddy):
-    """Subclass of Flask which builds URLs across instances via the party."""
-
-    def __init__(self, import_name, *args, **kwargs):
-        super(FlaskDrunk, self).__init__(import_name, *args, **kwargs)
-        # Bootstrap, turn the view function into a 404 after registering.
-        self.pregame = True
-        self.add_url_rule('/invite/', endpoint='party', view_func=self.join_party)
-        # This dispatcher hook is not currently used, but is potentially useful.
-        self.dispatcher = None
-        # The list of neighbors for sending/receiving messages.
-        self.partiers = []
-
-    def on_party(self, environ):
-        """Hook to expose party registration only once, to dispatcher."""
-        if not self.pregame:
-            # This route does not exist at the HTTP level.
-            abort(404)
-        self.pregame = False
-
-    def join_party(self, request=request):
-        """A simple wrapper to support Flask's request pattern."""
-        return self.party(request)
-
-    def on_receive(self, sender, message):
-        """Message receive hook to request URLs across instances."""
-        if message[0] == 'url':
-            try:
-                endpoint, values = message[1]
-                return ('url', self.my_url_for(endpoint, **values))
-            except BuildError:
-                return ('url', None)
-
-    def url_for(self, endpoint, use_buddies=True, **values):
-        """Build a URL, asking other applications if BuildError occurs locally.
-
-        This implementation is a fork of :func:`~flask.helpers.url_for`, where
-        the implementation you see here works around Flask's context-locals to
-        provide URL routing specific to ``self``.  Then it implements the
-        wsgi_party url_for requests across Flask applications loaded into the
-        dispatcher.
-        """
-        # Some values are popped; keep an original copy for re-requesting URL.
-        original_values = copy.deepcopy(values)
-        blueprint_name = request.blueprint
-        if endpoint[:1] == '.':
-            if blueprint_name is not None:
-                endpoint = blueprint_name + endpoint
-            else:
-                endpoint = endpoint[1:]
-        external = values.pop('_external', False)
-        anchor = values.pop('_anchor', None)
-        method = values.pop('_method', None)
-        self.inject_url_defaults(endpoint, values)
-        url_adapter = self.create_url_adapter(request)
-        try:
-            rv = url_adapter.build(endpoint, values, method=method,
-                                   force_external=external)
-        except BuildError:
-            # We do not have this URL, ask our buddies.
-            if not use_buddies:
-                raise
-            for buddy in self.buddies:
-                rv = self.buddy_url_for(buddy, endpoint, **original_values)
-                if rv is not None:
-                    return rv
-        if anchor is not None:
-            rv += '#' + url_quote(anchor)
-        return rv
-
-    def my_url_for(self, endpoint, use_buddies=False, **values):
-        """Context-locals hurt."""
-        with self.test_request_context():
-            return self.url_for(endpoint, use_buddies=use_buddies, **values)
-
-    def buddy_url_for(self, buddy, endpoint, **values):
-        """Ask a drinking buddy for a URL matching this endpoint."""
-        message = 'url', (endpoint, values)
-        return buddy.send(self, message)[1]
-
-
-class MC(DispatcherMiddleware):
-    """DispatcherMiddleware which implements our bootstrapping hack."""
-
-    def __init__(self, app, mounts=None, base_url=None):
-        super(MC, self).__init__(app, mounts=mounts)
-        self.base_url = base_url
-        self.attendees = []
-        environ = create_environ(path='/invite/', base_url=self.base_url)
-        environ['mc_dispatcher'] = self
-        for application in self.applications:
-            run_wsgi_app(application, environ)
-
-    @property
-    def applications(self):
-        """A list of all mounted applications, partiers or not."""
-        return [self.app] + self.mounts.values()
-
-
-# Demonstrate.
-root = FlaskDrunk(__name__)
-one = FlaskDrunk(__name__)
-two = FlaskDrunk(__name__)
-
-root.debug = True
-one.debug = True
-two.debug = True
-
-one.config['APPLICATION_ROOT'] = '/one'
-two.config['APPLICATION_ROOT'] = '/two'
-
-template = """
-<html>
-<head>
-  <title>Demo: Cross-application URL building in Flask.</title>
-</head>
-<body>
-  <p>You are in the root application.</p>
-  <ul>
-    <li><a href="%s">Go to application one</a></li>
-    <li><a href="%s">Go to application two</a></li>
-  </ul>
-  <p>Source code is <a href="http://github.com/rduplain/wsgi_party">here</a>.</p>
-</body>
-</html>
-"""
-
-@root.route('/', endpoint='index')
-def root_index():
-    if not root.buddies:
-        return 'I have no friends.'
-    return template % (root.url_for('one:index'), root.url_for('two:index'))
-
-@one.route('/', endpoint='one:index')
-def one_index():
-    url = one.url_for('two:index')
-    return 'This is app one. <a href="%s">Go to two.</a>' % url
-
-@two.route('/', endpoint='two:index')
-def two_index():
-    url = two.url_for('one:index')
-    return 'This is app two. <a href="%s">Go to one.</a>' % url
-
-application = MC(root, {
-    '/one': one,
-    '/two': two,
-})
-
-
-if __name__ == '__main__':
-    import os
-    from werkzeug.serving import run_simple
-    # Bind to PORT if defined, otherwise default to 5000.
-    port = int(os.environ.get('PORT', 5000))
-    run_simple('0.0.0.0', port, application, use_reloader=True)
