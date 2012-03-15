@@ -23,10 +23,10 @@ class PartylineOperator(object):
         self.dispatcher = dispatcher
 
     def connect(self, service, handler):
-        self.dispatcher.register(service, handler)
+        return self.dispatcher.connect(service, handler)
 
     def send_all(self, service, payload):
-        self.dispatcher.send_all(service, payload)
+        return self.dispatcher.send_all(service, payload)
 
 
 class WSGIParty(object):
@@ -95,7 +95,7 @@ class WSGIParty(object):
 
     def connect(self, service, handler):
         """Register a handler for a given service."""
-        self.partyline.set_default(service, []).append(handler)
+        self.partyline.setdefault(service, []).append(handler)
 
     def send_all(self, service, payload):
         """Notify all listeners of a service and yield their results."""
