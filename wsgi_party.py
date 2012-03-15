@@ -105,11 +105,11 @@ class PartylineException(Exception):
 
 
 class AlreadyJoinedParty(PartylineException):
-    """For bootstrapping."""
+    """For bootstrapping; join only once."""
 
 
 class PartylineConnector(object):
-    """Mixin for registration & message passing."""
+    """Mixin as reference implementation of connecting to partyline."""
 
     #: The partyline_key set in :class:`WSGIParty`.
     partyline_key = 'partyline'
