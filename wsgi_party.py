@@ -106,32 +106,3 @@ class PartylineException(Exception):
 
 class AlreadyJoinedParty(PartylineException):
     """For bootstrapping; join only once."""
-
-
-class PartylineConnector(object):
-    """Mixin as reference implementation of connecting to partyline."""
-
-    #: The partyline_key set in :class:`WSGIParty`.
-    partyline_key = 'partyline'
-
-    def join_party(self, environ, service, handler):
-        """Mount this view function at '/__invite__/' script path."""
-        try:
-            # Provide a bootstrapping hook for the partyline.
-            self.before_partyline_join(environ, service)
-        except AlreadyJoinedParty:
-            # Do not participate once bootstrapped.
-            return
-        if hasattr(self, 'on_partyline_join'):
-            # Provide a hook when joining the partyline.
-            self.on_partyline_join(environ)
-        # Partyline dispatcher loads itself into the environ.
-        self.partyline = environ.get(self.partyline_key)
-        # Every participating application registers itself.
-        self.partyline.connect(service, handler)
-
-    def before_partyline_join(self, environ):
-        """Connect to partyline or raise an exception."""
-        if getattr(self, 'connected_partyline', False):
-            raise AlreadyJoinedParty()
-        self.connected_partyline = True
