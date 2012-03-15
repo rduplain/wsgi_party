@@ -13,6 +13,10 @@ class PartylineException(Exception):
     """Base exception class for wsgi_party."""
 
 
+class HighAndDry(PartylineException):
+    """Handler does not have a response; skip it."""
+
+
 class PartylineOperator(object):
     """Expose an API for connecting a listener to the WSGI partyline.
 
@@ -100,4 +104,7 @@ class WSGIParty(object):
     def send_all(self, service, payload):
         """Notify all listeners of a service and yield their results."""
         for handler in self.partyline[service]:
-            yield handler(payload)
+            try:
+                yield handler(payload)
+            except HighAndDry:
+                pass
