@@ -129,8 +129,6 @@ class PartylineConnector(object):
         self.partyline = environ.get(self.partyline_key)
         # Every participating application registers itself.
         self.partyline.connect(service, handler)
-        # Return something.
-        return 'Hello, world!'
 
     def before_partyline_join(self, environ):
         """Connect to partyline or raise an exception."""
