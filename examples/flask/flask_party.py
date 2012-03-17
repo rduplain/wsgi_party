@@ -94,9 +94,9 @@ two.debug = True
 three.debug = True
 
 # Tell sessions on which path to store cookies.
-one.config['APPLICATION_ROOT'] = '/one'
-two.config['APPLICATION_ROOT'] = '/two'
-three.config['APPLICATION_ROOT'] = '/three'
+# one.config['APPLICATION_ROOT'] = '/one'
+# two.config['APPLICATION_ROOT'] = '/two'
+# three.config['APPLICATION_ROOT'] = '/three'
 
 template = """
 <html>
@@ -136,9 +136,9 @@ def three_index():
 
 
 application = WSGIParty(DispatcherMiddleware(root, {
-    one.config['APPLICATION_ROOT']: one,
-    two.config['APPLICATION_ROOT']: two,
-    three.config['APPLICATION_ROOT']: three,
+    '/one': one,
+    '/two': two,
+    '/three': three,
 }), invites=(INVITE_PATH, '/one/'+INVITE_PATH, '/two/'+INVITE_PATH))
 
 
