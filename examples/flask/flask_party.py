@@ -3,6 +3,7 @@
 import copy
 
 from flask import Flask, abort, request
+from flask import _request_ctx_stack
 from werkzeug.routing import BuildError
 from werkzeug.urls import url_quote
 from werkzeug.wsgi import DispatcherMiddleware
@@ -19,12 +20,14 @@ class PartylineFlask(Flask):
                           view_func=self.join_party)
         self.partyline = None
         self.connected = False
+        self.invitation_context = None
 
     def join_party(self, request=request):
         # Bootstrap, turn the view function into a 404 after registering.
         if self.connected:
             # This route does not exist at the HTTP level.
             abort(404)
+        self.invitation_context = _request_ctx_stack.top
         self.partyline = request.environ.get(WSGIParty.partyline_key)
         self.partyline.connect('ping', lambda x: 'pong')
         self.partyline.connect('url', self.handle_url)
@@ -75,8 +78,7 @@ class PartylineFlask(Flask):
         return rv
 
     def my_url_for(self, endpoint, **values):
-        """Context-locals hurt."""
-        with self.test_request_context():
+        with self.invitation_context:
             return self.url_for(endpoint, use_partyline=False, **values)
 
 
