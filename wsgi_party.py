@@ -26,11 +26,11 @@ class PartylineOperator(object):
     def __init__(self, partyline):
         self.partyline = partyline
 
-    def connect(self, service, handler):
-        return self.partyline.connect(service, handler)
+    def connect(self, service_name, handler):
+        return self.partyline.connect(service_name, handler)
 
-    def send_all(self, service, payload):
-        return self.partyline.send_all(service, payload)
+    def ask_around(self, service_name, payload):
+        return self.partyline.ask_around(service_name, payload)
 
 
 class WSGIParty(object):
@@ -45,31 +45,33 @@ class WSGIParty(object):
     def __init__(self, application, invites=()):
         #: Wrapped WSGI application.
         self.application = application
+
+        #: A dict of service name -> handler mappings.
+        self.handlers = {}
+
+        #: PartylineOperator to expose APIs to connect to this WSGIParty.
+        self.operator = self.operator_class(self)
+
         self.send_invitations(invites)
 
     def __call__(self, environ, start_response):
         """Call wrapped application."""
-        self.applications(environ, start_response)
+        return self.application(environ, start_response)
 
     def send_invitations(self, invites):
         """Call each invite route to establish a partyline."""
-        self.operator = self.operator_class(self)
         for invite in invites:
-            self.send_invitation(invite)
+            environ = create_environ(path=invite)
+            environ[self.partyline_key] = self.operator
+            run_wsgi_app(self.application, environ)
 
-    def send_invitation(self, invite):
-        """Call individual route to add an application to the partyline."""
-        environ = create_environ(path=invite)
-        environ[self.partyline_key] = operator
-        run_wsgi_app(application, environ)
+    def connect(self, service_name, handler):
+        """Register a handler for a given service name."""
+        self.handlers.setdefault(service_name, []).append(handler)
 
-    def connect(self, service, handler):
-        """Register a handler for a given service."""
-        self.partyline.setdefault(service, []).append(handler)
-
-    def send_all(self, service, payload):
-        """Notify all listeners of a service and yield their results."""
-        for handler in self.partyline[service]:
+    def ask_around(self, service_name, payload):
+        """Notify all listeners of a service name and yield their results."""
+        for handler in self.handlers[service_name]:
             try:
                 yield handler(payload)
             except HighAndDry:
