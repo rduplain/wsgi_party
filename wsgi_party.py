@@ -80,4 +80,4 @@ class WSGIParty(object):
             try:
                 yield handler(payload)
             except HighAndDry:
-                pass
+                continue
