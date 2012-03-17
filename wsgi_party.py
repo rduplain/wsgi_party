@@ -20,17 +20,22 @@ class HighAndDry(PartylineException):
 class PartylineOperator(object):
     """Expose an API for connecting a listener to the WSGI partyline.
 
-    The WSGI application uses this object to communicate with the party.
+    The WSGI application uses this object to communicate with the party, with
+    one operator per invitation, and typically one invitation per WSGI
+    application.  One operator per application prevents an application from
+    handling a request from itself.
     """
 
     def __init__(self, partyline):
         self.partyline = partyline
+        self.handlers = set()
 
     def connect(self, service_name, handler):
+        self.handlers.add(handler)
         return self.partyline.connect(service_name, handler)
 
     def ask_around(self, service_name, payload):
-        return self.partyline.ask_around(service_name, payload)
+        return self.partyline.ask_around(self, service_name, payload)
 
 
 class WSGIParty(object):
@@ -49,9 +54,6 @@ class WSGIParty(object):
         #: A dict of service name -> handler mappings.
         self.handlers = {}
 
-        #: PartylineOperator to expose APIs to connect to this WSGIParty.
-        self.operator = self.operator_class(self)
-
         self.send_invitations(invites)
 
     def __call__(self, environ, start_response):
@@ -62,16 +64,19 @@ class WSGIParty(object):
         """Call each invite route to establish a partyline."""
         for invite in invites:
             environ = create_environ(path=invite)
-            environ[self.partyline_key] = self.operator
+            environ[self.partyline_key] = self.operator_class(self)
             run_wsgi_app(self.application, environ)
 
     def connect(self, service_name, handler):
         """Register a handler for a given service name."""
         self.handlers.setdefault(service_name, []).append(handler)
 
-    def ask_around(self, service_name, payload):
+    def ask_around(self, operator, service_name, payload):
         """Notify all listeners of a service name and yield their results."""
         for handler in self.handlers[service_name]:
+            if handler in operator.handlers:
+                # Skip handlers on the same operator, ask *others* for answer.
+                continue
             try:
                 yield handler(payload)
             except HighAndDry:
