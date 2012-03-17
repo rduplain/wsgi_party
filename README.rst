@@ -1,50 +1,31 @@
-================================================================
- WSGI Party: partyline middleware for WSGI with good intentions
-================================================================
+WSGI Party: partyline middleware for WSGI with good intentions
+==============================================================
 
-This is a collaboration between Ron DuPlain (a Flask core developer) and Chris
-McDonough & Michael Merickel (Pyramid core developers).
+wsgi_party's goals for Python web developers:
 
-Primary use cases:
+1. Refactor legacy projects one route at a time; graft instead of rewrite.
+2. Try new ideas from meetups/conferences in isolation; increase velocity.
+3. Integrate multiple web frameworks; use the right tool for the job.
 
-1. I have a legacy WSGI application, and I would like to refactor it one route
-   at a time to a fresh clean project which makes hacking fun again.  Avoid the
-   great rewrite; graft applications instead.
-2. I just attended a Python meetup or conference where I was introduced to
-   advanced patterns, and would like to try new techniques in isolation from
-   the rest of my project.
-3. I enjoy using multiple frameworks in my project, and would like to integrate
-   them at WSGI level without painful/awkward URL-building across applications.
+wsgi_party is for WSGI framework developers. See individual frameworks and
+extensions for support. The initial intent was to build URLs across independent
+applications, but other exchanges are possible if they are supported by all
+frameworks in use.
 
-Non-opinionated frameworks (such as Pyramid or Flask) encourage you to make
-explicit design decisions, and sometimes you are stuck with design decisions
-you made a long time ago.  Instead of rewriting everything all of the time, you
-can mix applications at the WSGI level and put emergent insights into
-production faster.  To date, the primary obstacle is building URLs across
-applications for links and redirects.  Yes, you can come up with various URL
-rewrite hacks, but this requires shared ownership of an application's routes,
-and I'd prefer to let the application maintain its own routes (and after some
-evaluation, I think you'll agree).
+The wsgi_party module provides the WSGIParty middleware which allows all
+mounted applications to hook in handlers for cross-application communication
+within a single WSGI process. Mount individual applications in a dispatcher,
+then wrap the dispatcher with WSGIParty. Applications can then ask each other
+for information with simple in-process messages. Messages are synchronous and
+namespaced, and must be explicitly supported by Python web frameworks or their
+extensions.
 
-This project investigates message-passing within a WSGI process, with intent to
-build URLs between applications, but potentially allows for more.
+BSD licensed. Install with::
 
-Connecting applications, an observation.  WSGI allows for arbitrary
-middleware.  If we connect multiple applications with a dispatcher middleware,
-we have no guarantee that the Python objects implementing the applications
-exposing any API beyond the core WSGI spec.
+    pip install wsgi_party
 
-The hack: every participating WSGI application can provide a route which a
-middleware can use to register the application into a message-passing scheme.
-Essentially, we need to bootstrap the middleware to discover and register
-without any bolt-ons to the WSGI spec and while allowing arbitrary middleware
-to be provided.  If every WSGI application registers a special route or fails
-gracefully (404), the middleware can call this route on every mounted
-application to bootstrap (credit to Chris McDonough for this technique).
+Read the docs at: http://readthedocs.org/docs/wsgi_party/
 
-Development philosophy: routes are typically a name or endpoint encoded as a
-string and a collection of view function arguments.  We can normalize to one
-routing framework, and have participating web frameworks build adapters for
-it.  The endpoint names are up to the developer, and in my opinion, should not
-be standardized.  The developer should know the endpoint in each application in
-the WSGI process, and use that information when requesting URLs to be built.
+This project started as a collaboration between Michael Merickel & Chris
+McDonough (Pyramid core developers) and Ron DuPlain (a Flask core developer).
+See AUTHORS for a full list of contributors.
