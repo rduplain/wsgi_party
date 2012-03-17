@@ -5,13 +5,17 @@ import copy
 from flask import Flask, abort, request
 from werkzeug.routing import BuildError
 from werkzeug.urls import url_quote
+from werkzeug.wsgi import DispatcherMiddleware
 from wsgi_party import WSGIParty, HighAndDry
+
+
+INVITE_PATH = '/__invite__/'
 
 
 class PartylineFlask(Flask):
     def __init__(self, import_name, *args, **kwargs):
         super(PartylineFlask, self).__init__(import_name, *args, **kwargs)
-        self.add_url_rule(WSGIParty.invite_path, endpoint='partyline',
+        self.add_url_rule(INVITE_PATH, endpoint='partyline',
                           view_func=self.join_party)
         self.partyline = None
         self.connected = False
@@ -63,7 +67,7 @@ class PartylineFlask(Flask):
             # We do not have this URL, ask the partyline.
             if not use_partyline:
                 raise
-            for url in self.partyline.send_all('url', (endpoint, copy_values)):
+            for url in self.partyline.ask_around('url', (endpoint, copy_values)):
                 # First response wins.
                 return url
         if anchor is not None:
@@ -87,6 +91,7 @@ one.debug = True
 two.debug = True
 three.debug = True
 
+# Tell sessions on which path to store cookies.
 one.config['APPLICATION_ROOT'] = '/one'
 two.config['APPLICATION_ROOT'] = '/two'
 three.config['APPLICATION_ROOT'] = '/three'
@@ -128,11 +133,11 @@ def three_index():
     return 'I do not participate in parties.'
 
 
-application = WSGIParty(root, {
-    '/one': one,
-    '/two': two,
-    '/three': three,
-})
+application = WSGIParty(DispatcherMiddleware(root, {
+    one.config['APPLICATION_ROOT']: one,
+    two.config['APPLICATION_ROOT']: two,
+    three.config['APPLICATION_ROOT']: three,
+}), invites=(INVITE_PATH, '/one/'+INVITE_PATH, '/two/'+INVITE_PATH))
 
 
 if __name__ == '__main__':
