@@ -7,7 +7,7 @@ setup(
     license='BSD',
     author='Ron DuPlain',
     author_email='ron.duplain@gmail.com',
-    description='A partyline dispatcher for WSGI with good intentions.',
+    description='A partyline middleware for WSGI with good intentions.',
     long_description=open('README.rst').read(),
     pymodules=['wsgi_party'],
     include_package_data=True,

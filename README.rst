@@ -1,5 +1,5 @@
 ================================================================
- WSGI Party: partyline dispatcher for WSGI with good intentions
+ WSGI Party: partyline middleware for WSGI with good intentions
 ================================================================
 
 This is a collaboration between Ron DuPlain (a Flask core developer) and Chris
@@ -35,11 +35,11 @@ we have no guarantee that the Python objects implementing the applications
 exposing any API beyond the core WSGI spec.
 
 The hack: every participating WSGI application can provide a route which a
-dispatcher can use to register the application into a message-passing scheme.
-Essentially, we need to bootstrap the dispatcher to discover and register
+middleware can use to register the application into a message-passing scheme.
+Essentially, we need to bootstrap the middleware to discover and register
 without any bolt-ons to the WSGI spec and while allowing arbitrary middleware
 to be provided.  If every WSGI application registers a special route or fails
-gracefully (404), the dispatcher can call this route on every mounted
+gracefully (404), the middleware can call this route on every mounted
 application to bootstrap (credit to Chris McDonough for this technique).
 
 Development philosophy: routes are typically a name or endpoint encoded as a

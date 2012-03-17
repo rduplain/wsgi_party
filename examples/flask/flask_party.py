@@ -45,7 +45,7 @@ class PartylineFlask(Flask):
         the implementation you see here works around Flask's context-locals to
         provide URL routing specific to ``self``.  Then it implements the
         wsgi_party url_for requests across Flask applications loaded into the
-        dispatcher.
+        partyline.
         """
         # Some values are popped; keep an original copy for re-requesting URL.
         copy_values = copy.deepcopy(values)
