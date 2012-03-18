@@ -39,7 +39,7 @@ class TestWSGIParty(unittest.TestCase):
         inst(environ, start_response)
         self.assertEqual(app.environs, [environ])
         self.assertEqual(environ['start_response_called'], True)
-        
+
     def test_send_invitations(self):
         app = DummyWSGIApp()
         inst = self._makeOne(app)
@@ -47,10 +47,10 @@ class TestWSGIParty(unittest.TestCase):
         self.assertEqual(len(app.environs), 2)
         environ1, environ2 = app.environs
         self.assertEqual(environ1['PATH_INFO'], '/__invite__')
-        self.assertEqual(environ1[inst.partyline_key].__class__, 
+        self.assertEqual(environ1[inst.partyline_key].__class__,
                          inst.operator_class)
         self.assertEqual(environ2['PATH_INFO'], '/another/__invite__')
-        self.assertEqual(environ2[inst.partyline_key].__class__, 
+        self.assertEqual(environ2[inst.partyline_key].__class__,
                          inst.operator_class)
 
     def test_connect_to_nonexisting(self):
@@ -58,7 +58,7 @@ class TestWSGIParty(unittest.TestCase):
         inst = self._makeOne(app)
         inst.connect('service_name', 'handler')
         self.assertEqual(inst.handlers['service_name'], ['handler'])
-        
+
     def test_connect_to_existing(self):
         app = DummyWSGIApp()
         inst = self._makeOne(app)
@@ -126,7 +126,7 @@ class DummyPartyline(object):
         self.asked = []
         self.ask_response = ask_response
         self.connect_response = connect_response
-        
+
     def connect(self, name, handler):
         self.connections.append((name, handler))
         return self.connect_response
@@ -144,5 +144,5 @@ class DummyWSGIApp(object):
         self.environs.append(environ)
         start_response('200 OK', [])
         return self.response
-    
-        
+
+
