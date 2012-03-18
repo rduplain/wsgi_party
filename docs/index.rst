@@ -106,7 +106,7 @@ Partyline Design
 Dispatchers allow for mounting multiple applications in WSGI, but providing a
 means for mounted applications to get details from each other is a separate
 issue.  Note that WSGI allows for arbitrary middleware.  Connecting multiple
-applications with a dispatcher middleware gives guarantee that the mounted
+applications with a dispatcher middleware gives no guarantee that the mounted
 Python objects expose any API beyond the core WSGI spec, as they could be
 wrapped.
 
@@ -119,6 +119,9 @@ partyline.
 
 In the current design, this route is only sensible at the WSGI level, not at
 HTTP, since all applications bind to each other within a single process.
+Invitation handlers should respond with a 404 not-found response for all
+requests after the first, as :class:`wsgi_party.WSGIParty` only calls this
+handler once on initialization.
 
 
 .. _partyline_philosophy:
