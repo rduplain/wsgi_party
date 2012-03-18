@@ -1,6 +1,7 @@
 # pip install pyramid
 
 from pyramid.config import Configurator
+from pyramid.wsgi import wsgiapp2
 
 from pyramid_party import (
     get_party,
@@ -10,7 +11,6 @@ from pyramid_party import (
 def party_invite(event):
     request = event.request
     party = event.party
-
     def _gen_url(payload):
         name = payload['name']
         kwargs = payload.get('kwargs', {})
@@ -18,11 +18,11 @@ def party_invite(event):
         return request.route_path(name, _query=query, **kwargs)
     party.connect('url', _gen_url)
 
-def view_base(request):
+def view(request):
     party = get_party(request)
     response = request.response
 
-    urls = party.send_all('url', {'name': 'home'})
+    urls = list(party.ask_around('url', {'name': 'home'}))
     if not urls:
         body = 'I have no friends. :-('
     else:
@@ -30,32 +30,6 @@ def view_base(request):
         for url in urls:
             body += 'Please visit <a href="{0}">{0}</a><br/>'.format(url)
     response.body = body
-    return response
-
-def view_one(request):
-    party = get_party(request)
-    response = request.response
-
-    urls = party.send_all('url', {'name': 'home'})
-    if not urls:
-        body = 'I have no friends. :-('
-    else:
-        url = list(urls)[0]
-        body = 'Please visit <a href="{0}">App Two</a>'.format(url)
-    response.body = BODY % {'app': 'One', 'body': body}
-    return response
-
-def view_two(request):
-    party = get_party(request)
-    response = request.response
-
-    urls = party.send_all('url', {'name': 'home'})
-    if not urls:
-        body = 'I have no friends. :-('
-    else:
-        url = list(urls)[0]
-        body = 'Please visit <a href="{0}">App One</a>'.format(url)
-    response.body = BODY % {'app': 'Two', 'body': body}
     return response
 
 BODY = """
@@ -69,43 +43,31 @@ BODY = """
 </html>
 """
 
-def main_base(global_conf, **settings):
-    config = Configurator(settings=settings)
-    config.include('pyramid_party')
-    config.add_view(view_base)
-    return config.make_wsgi_app()
-
-def main_one(global_conf, **settings):
-    config = Configurator(settings=settings)
+def appinclude(config):
     config.include('pyramid_party')
     config.add_subscriber(party_invite, PartylineInvitation)
     config.add_route('home', '')
-    config.add_view(view_one, route_name='home')
+    config.add_view(view, route_name='home')
 
-    return config.make_wsgi_app()
-
-def main_two(global_conf, **settings):
-    config = Configurator(settings=settings)
-    config.include('pyramid_party')
-    config.add_subscriber(party_invite, PartylineInvitation)
-    config.add_route('home', '')
-    config.add_view(view_two, route_name='home')
-
+def app():
+    config = Configurator()
+    config.include(appinclude)
     return config.make_wsgi_app()
 
 if __name__ == '__main__':
     import os
     from werkzeug.serving import run_simple
     from wsgi_party import WSGIParty
-
-    base = main_base({})
-    one = main_one({})
-    two = main_two({})
-    party = WSGIParty(base, mounts={
-        '/one': one,
-        '/two': two,
-    })
-
+    config = Configurator()
+    config.include(appinclude)
+    config.add_route('one', '/one*subpath')
+    config.add_route('two', '/two*subpath')
+    config.add_view(wsgiapp2(app()), route_name='one')
+    config.add_view(wsgiapp2(app()), route_name='two')
+    base = config.make_wsgi_app()
+    party = WSGIParty(
+        base, ('/__invite__', '/one/__invite__', '/two/__invite__')
+        )
     # Bind to PORT if defined, otherwise default to 5000.
     port = int(os.environ.get('PORT', 5000))
     run_simple('0.0.0.0', port, party, use_reloader=True)
