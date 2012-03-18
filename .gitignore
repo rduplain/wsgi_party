@@ -10,3 +10,4 @@ env*
 *.pyo
 *.rej
 .tox
+env*/
