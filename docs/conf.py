@@ -164,7 +164,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'wsgi_partydoc'
+htmlhelp_basename = 'wsgi_party_doc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -285,5 +285,10 @@ epub_copyright = u'2012, Ron DuPlain'
 #epub_tocdup = True
 
 
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'http://docs.python.org/': None}
+# Link to other documentation.
+intersphinx_mapping = {
+    'http://docs.python.org/': None,
+    'http://werkzeug.pocoo.org/docs/': None,
+    'http://flask.pocoo.org/docs/': None,
+    'http://docs.pylonsproject.org/en/latest/': None,
+}
