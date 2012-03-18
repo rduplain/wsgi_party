@@ -9,7 +9,7 @@ setup(
     author_email='ron.duplain@gmail.com',
     description='A partyline middleware for WSGI with good intentions.',
     long_description=open('README.rst').read(),
-    pymodules=['wsgi_party'],
+    py_modules=['wsgi_party'],
     include_package_data=True,
     zip_safe=False,
     platforms='any',
@@ -17,6 +17,7 @@ setup(
         # Werkzeug is convenient to get us started. Could potentially remove.
         'Werkzeug',
     ],
+    test_suite='tests',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
