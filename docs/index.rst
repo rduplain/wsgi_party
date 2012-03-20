@@ -22,6 +22,17 @@ BSD licensed. Install with::
     pip install wsgi_party
 
 
+.. _quickstart-users:
+
+Quickstart
+----------
+
+wsgi_party intends for Python web frameworks to provide an extension or plugin
+so that applications built in those frameworks can join the partyline with a
+simple wrapper.  Create the extension or use the partyline directly; see the
+:ref:`quickstart-diy`.
+
+
 .. _quickstart-diy:
 
 Quickstart for DIY Developers
