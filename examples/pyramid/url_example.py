@@ -1,4 +1,6 @@
-# pip install pyramid
+# pip install pyramid>1.3b3
+#
+# A bug was fixed in pyramid's 2b41345e815c2e584fd51bbe534ba35e222f3b80 commit.
 
 from pyramid.config import Configurator
 from pyramid.wsgi import wsgiapp2
