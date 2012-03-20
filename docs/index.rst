@@ -97,11 +97,11 @@ synchronously one at a time on :meth:`wsgi_party.PartylineOperator.ask_around`.
 The partyline simply connects handlers; it's up to the handlers to decide on
 message namespaces and what information to pass.
 
-Calling :meth:`wsgi_party.PartylineOperator.ask_around` yields an iterable of
-all available handler responses; the partyline itself makes no guarantee on
-order.  Note that each web framework has its own limitations on how to work
-with requests and request contexts.  Some frameworks require a request context
-to perform certain actions; keep the request context from the invitation around
+Calling :meth:`wsgi_party.PartylineOperator.ask_around` returns a list of all
+available handler responses; the partyline itself makes no guarantee on order.
+Note that each web framework has its own limitations on how to work with
+requests and request contexts.  Some frameworks require a request context to
+perform certain actions; keep the request context from the invitation around
 for handlers which require a request context.
 
 wsgi_party's original intent is to build URLs across applications, but supports

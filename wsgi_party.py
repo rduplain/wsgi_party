@@ -14,11 +14,11 @@ class PartylineException(Exception):
 
 
 class HighAndDry(PartylineException):
-    """Handler does not have a response; skip it."""
+    """A handler raises this when it does not have a response; skip it."""
 
 
 class PartylineOperator(object):
-    """Expose an API for connecting a listener to the WSGI partyline.
+    """Expose an API for connecting a handler to the WSGI partyline.
 
     The WSGI application uses this object to communicate with the party, with
     one operator per invitation, and typically one invitation per WSGI
@@ -44,24 +44,24 @@ class WSGIParty(object):
     #: Key in environ with reference to the partyline operator.
     partyline_key = 'partyline'
 
-    #: Class to use as the partyline operator, for connecting listeners.
+    #: Class to use as the partyline operator, for connecting handlers.
     operator_class = PartylineOperator
 
     def __init__(self, application, invites=()):
-        #: Wrapped WSGI application.
+        #: WSGIParty's wrapped WSGI application.
         self.application = application
 
-        #: A dict of service name -> handler mappings.
+        #: A dict of service name => handler mappings.
         self.handlers = {}
 
         self.send_invitations(invites)
 
     def __call__(self, environ, start_response):
-        """Call wrapped application."""
+        """Call WSGIParty's wrapped application."""
         return self.application(environ, start_response)
 
     def send_invitations(self, invites):
-        """Call each invite route to establish a partyline."""
+        """Call each invite route to establish a partyline. Called on init."""
         for invite in invites:
             environ = create_environ(path=invite)
             environ[self.partyline_key] = self.operator_class(self)
