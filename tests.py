@@ -1,5 +1,6 @@
 import unittest
 
+
 class TestPartylineOperator(unittest.TestCase):
     def _makeOne(self, partyline):
         from wsgi_party import PartylineOperator
@@ -17,8 +18,9 @@ class TestPartylineOperator(unittest.TestCase):
         partyline = DummyPartyline(ask_response=['abc'])
         inst = self._makeOne(partyline)
         result = inst.ask_around('name', 'payload')
-        self.assertEqual(partyline.asked, [(inst, 'name', 'payload')])
+        self.assertEqual(partyline.asked, [('name', 'payload', inst)])
         self.assertEqual(result, ['abc'])
+
 
 class TestWSGIParty(unittest.TestCase):
     def _makeOne(self, app, invites=()):
@@ -78,7 +80,7 @@ class TestWSGIParty(unittest.TestCase):
             L.append(payload)
             return 'result2'
         inst.handlers['service_name'] = [handler1, handler2]
-        result = inst.ask_around(operator, 'service_name', 'payload')
+        result = inst.ask_around('service_name', 'payload', operator=operator)
         self.assertEqual(L, ['payload', 'payload'])
         self.assertEqual(result, ['result', 'result2'])
 
@@ -95,7 +97,7 @@ class TestWSGIParty(unittest.TestCase):
             L.append(payload)
             raise HighAndDry()
         inst.handlers['service_name'] = [handler1, handler2]
-        result = inst.ask_around(operator, 'service_name', 'payload')
+        result = inst.ask_around('service_name', 'payload', operator=operator)
         self.assertEqual(L, ['payload', 'payload'])
         self.assertEqual(result, ['result'])
 
@@ -111,14 +113,31 @@ class TestWSGIParty(unittest.TestCase):
             return 'result2'
         operator = DummyOperator((handler1, handler2))
         inst.handlers['service_name'] = [handler1, handler2]
-        result = inst.ask_around(operator, 'service_name', 'payload')
+        result = inst.ask_around('service_name', 'payload', operator=operator)
         self.assertEqual(L, [])
         self.assertEqual(result, [])
+
+    def test_ask_around_no_operator(self):
+        from wsgi_party import HighAndDry
+        app = DummyWSGIApp()
+        inst = self._makeOne(app)
+        L = []
+        def handler1(payload):
+            L.append(payload)
+            return 'result'
+        def handler2(payload):
+            L.append(payload)
+            raise HighAndDry()
+        inst.handlers['service_name'] = [handler1, handler2]
+        result = inst.ask_around('service_name', 'payload')
+        self.assertEqual(L, ['payload', 'payload'])
+        self.assertEqual(result, ['result'])
 
 
 class DummyOperator(object):
     def __init__(self, handlers=()):
         self.handlers = handlers
+
 
 class DummyPartyline(object):
     def __init__(self, connect_response=None, ask_response=None):
@@ -131,9 +150,10 @@ class DummyPartyline(object):
         self.connections.append((name, handler))
         return self.connect_response
 
-    def ask_around(self, operator, service_name, payload):
-        self.asked.append((operator, service_name, payload))
+    def ask_around(self, service_name, payload, operator=None):
+        self.asked.append((service_name, payload, operator))
         return self.ask_response
+
 
 class DummyWSGIApp(object):
     def __init__(self, response=()):
@@ -144,5 +164,3 @@ class DummyWSGIApp(object):
         self.environs.append(environ)
         start_response('200 OK', [])
         return self.response
-
-

@@ -27,15 +27,24 @@ class PartylineOperator(object):
     """
 
     def __init__(self, partyline):
+        #: Instance of :class:`WSGIParty`, required argument.
         self.partyline = partyline
+
+        #: Set of handlers added through :meth:`connect`.
         self.handlers = set()
 
     def connect(self, service_name, handler):
+        """Connect a handler :meth:`ask_around` calls for service_name."""
         self.handlers.add(handler)
         return self.partyline.connect(service_name, handler)
 
     def ask_around(self, service_name, payload):
-        return self.partyline.ask_around(self, service_name, payload)
+        """Ask all handlers of a given service name, return list of answers.
+
+        Handlers connected through this instance are skipped, so that
+        applications do not call themselves.
+        """
+        return self.partyline.ask_around(service_name, payload, operator=self)
 
 
 class WSGIParty(object):
@@ -71,11 +80,15 @@ class WSGIParty(object):
         """Register a handler for a given service name."""
         self.handlers.setdefault(service_name, []).append(handler)
 
-    def ask_around(self, operator, service_name, payload):
-        """Ask all handlers of a given service name, return list of answers."""
+    def ask_around(self, service_name, payload, operator=None):
+        """Ask all handlers of a given service name, return list of answers.
+
+        Handlers connected through the optionally given operator are skipped,
+        so that partyline applications do not call themselves.
+        """
         answers = []
         for handler in self.handlers[service_name]:
-            if handler in operator.handlers:
+            if operator is not None and handler in operator.handlers:
                 # Skip handlers on the same operator, ask *others* for answer.
                 continue
             try:
