@@ -1,0 +1,2 @@
+include README.rst LICENSE AUTHORS tests.py
+prune docs/_build
