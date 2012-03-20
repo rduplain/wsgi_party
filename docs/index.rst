@@ -233,4 +233,8 @@ API
    :members:
    :inherited-members:
 
+.. autoclass:: NoSuchServiceName
+   :members:
+   :inherited-members:
+
 :ref:`genindex`
