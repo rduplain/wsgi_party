@@ -78,7 +78,7 @@ class TestWSGIParty(unittest.TestCase):
             L.append(payload)
             return 'result2'
         inst.handlers['service_name'] = [handler1, handler2]
-        result = list(inst.ask_around(operator, 'service_name', 'payload'))
+        result = inst.ask_around(operator, 'service_name', 'payload')
         self.assertEqual(L, ['payload', 'payload'])
         self.assertEqual(result, ['result', 'result2'])
 
@@ -95,7 +95,7 @@ class TestWSGIParty(unittest.TestCase):
             L.append(payload)
             raise HighAndDry()
         inst.handlers['service_name'] = [handler1, handler2]
-        result = list(inst.ask_around(operator, 'service_name', 'payload'))
+        result = inst.ask_around(operator, 'service_name', 'payload')
         self.assertEqual(L, ['payload', 'payload'])
         self.assertEqual(result, ['result'])
 
@@ -111,7 +111,7 @@ class TestWSGIParty(unittest.TestCase):
             return 'result2'
         operator = DummyOperator((handler1, handler2))
         inst.handlers['service_name'] = [handler1, handler2]
-        result = list(inst.ask_around(operator, 'service_name', 'payload'))
+        result = inst.ask_around(operator, 'service_name', 'payload')
         self.assertEqual(L, [])
         self.assertEqual(result, [])
 

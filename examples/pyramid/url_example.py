@@ -22,7 +22,7 @@ def view(request):
     party = get_party(request)
     response = request.response
 
-    urls = list(party.ask_around('url', {'name': 'home'}))
+    urls = party.ask_around('url', {'name': 'home'})
     if not urls:
         body = 'I have no friends. :-('
     else:

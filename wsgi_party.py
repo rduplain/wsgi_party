@@ -72,12 +72,14 @@ class WSGIParty(object):
         self.handlers.setdefault(service_name, []).append(handler)
 
     def ask_around(self, operator, service_name, payload):
-        """Notify all listeners of a service name and yield their results."""
+        """Ask all handlers of a given service name, return list of answers."""
+        answers = []
         for handler in self.handlers[service_name]:
             if handler in operator.handlers:
                 # Skip handlers on the same operator, ask *others* for answer.
                 continue
             try:
-                yield handler(payload)
+                answers.append(handler(payload))
             except HighAndDry:
                 continue
+        return answers
