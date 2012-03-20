@@ -23,9 +23,9 @@ class TestPartylineOperator(unittest.TestCase):
 
 
 class TestWSGIParty(unittest.TestCase):
-    def _makeOne(self, app, invites=()):
+    def _makeOne(self, app, invites=(), ignore_missing_services=False):
         from wsgi_party import WSGIParty
-        return WSGIParty(app, invites)
+        return WSGIParty(app, invites, ignore_missing_services)
 
     def test_ctor_calls_send_invitations(self):
         app = DummyWSGIApp()
@@ -132,6 +132,21 @@ class TestWSGIParty(unittest.TestCase):
         result = inst.ask_around('service_name', 'payload')
         self.assertEqual(L, ['payload', 'payload'])
         self.assertEqual(result, ['result'])
+
+    def test_ask_around_no_handler(self):
+        from wsgi_party import NoSuchServiceName
+        app = DummyWSGIApp()
+        inst = self._makeOne(app)
+        self.assertRaises(NoSuchServiceName, inst.ask_around, 'unlucky', None)
+
+    def test_ask_around_no_handler_ignored(self):
+        from wsgi_party import NoSuchServiceName
+        app = DummyWSGIApp()
+        inst = self._makeOne(app, ignore_missing_services=True)
+        try:
+            self.assertEqual(inst.ask_around('who_cares', None), [])
+        except NoSuchServiceName:
+            self.fail('NoSuchServiceName was not suppressed as requested.')
 
 
 class DummyOperator(object):

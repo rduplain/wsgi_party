@@ -17,6 +17,10 @@ class HighAndDry(PartylineException):
     """A handler raises this when it does not have a response; skip it."""
 
 
+class NoSuchServiceName(PartylineException):
+    """Raised when no handlers are registered for a requested service name."""
+
+
 class PartylineOperator(object):
     """Expose an API for connecting a handler to the WSGI partyline.
 
@@ -56,12 +60,15 @@ class WSGIParty(object):
     #: Class to use as the partyline operator, for connecting handlers.
     operator_class = PartylineOperator
 
-    def __init__(self, application, invites=()):
+    def __init__(self, application, invites=(), ignore_missing_services=False):
         #: WSGIParty's wrapped WSGI application.
         self.application = application
 
         #: A dict of service name => handler mappings.
         self.handlers = {}
+
+        #: If True, :class:`NoSuchServiceName` errors are suppressed.
+        self.ignore_missing_services = ignore_missing_services
 
         self.send_invitations(invites)
 
@@ -87,7 +94,14 @@ class WSGIParty(object):
         so that partyline applications do not call themselves.
         """
         answers = []
-        for handler in self.handlers[service_name]:
+        try:
+            service_handlers = self.handlers[service_name]
+        except KeyError:
+            if not self.ignore_missing_services:
+                raise NoSuchServiceName('No handler is registered for %r.' %
+                                        repr(service_name))
+            service_handlers = []
+        for handler in service_handlers:
             if operator is not None and handler in operator.handlers:
                 # Skip handlers on the same operator, ask *others* for answer.
                 continue
