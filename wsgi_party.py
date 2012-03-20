@@ -67,7 +67,7 @@ class WSGIParty(object):
         #: A dict of service name => handler mappings.
         self.handlers = {}
 
-        #: If True, :class:`NoSuchServiceName` errors are suppressed.
+        #: If True, suppress :class:`NoSuchServiceName` errors. Default: False.
         self.ignore_missing_services = ignore_missing_services
 
         self.send_invitations(invites)
