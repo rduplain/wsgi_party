@@ -166,19 +166,19 @@ participating frameworks.
 Partyline Design
 ----------------
 
-Dispatchers allow for mounting multiple applications in WSGI, but providing a
-means for mounted applications to get details from each other is a separate
-issue.  Note that WSGI allows for arbitrary middleware.  Connecting multiple
+Dispatchers allow for mounting multiple applications in WSGI, but do not
+provide a means for mounted applications to exchange details with each other
+directly.  Note that WSGI allows for arbitrary middleware.  Connecting multiple
 applications with a dispatcher middleware gives no guarantee that the mounted
 Python objects expose any API beyond the core WSGI spec, as they could be
 wrapped.
 
-Instead of requiring middleware participation or changing the WSGI spec, every
-partyline WSGI application can provide a route which a middleware can use to
-register the application into a message-passing scheme. If every WSGI
-application registers a special route or fails gracefully (404), a unifying
-middleware can call this route on every mounted application to bootstrap a
-partyline.
+The key: instead of requiring middleware participation or changing the WSGI
+spec, every partyline WSGI application can provide a route which a middleware
+can use to register the application into a message-passing scheme. If every
+WSGI application registers a special route or fails gracefully (404), a
+unifying middleware can call this route on every mounted application to
+bootstrap a partyline.
 
 In the current design, this route is only sensible at the WSGI level, not at
 HTTP, since all applications bind to each other within a single process.
