@@ -84,13 +84,65 @@ others, through the ``ask_around`` method::
 
 Handlers connected by :meth:`wsgi_party.PartlineOperator.connect` should either
 return a value or raise :class:`wsgi_party.HighAndDry` if they should be
-skipped.  See :ref:`handlers_and_limitations`.
+skipped.  See :ref:`building_handlers` and :ref:`handler_limitations`.
 
 
-.. _handlers_and_limitations:
+.. _building_handlers:
 
-Handlers and Limitations
-------------------------
+Building Handlers
+-----------------
+
+A handler connected to WSGIParty is just a callable which accepts a single
+argument, which could be a single value or a tuple-packed set of arguments
+(that's up to the handler).  If a handler does not have a meaningful result, it
+should raise :class:`wsgi_party.HighAndDry`. To illustrate::
+
+    from __future__ import print_function
+    from wsgi_party import WSGIParty, HighAndDry
+
+    def even(number):
+        "A trivial handler, returns number if it is even."
+        if number % 2 == 0:
+            return number
+        raise HighAndDry()
+
+    def odd(number):
+        "A trivial handler, returns number if it is odd."
+        if number % 2 == 1:
+            return number
+        raise HighAndDry()
+
+    def multiple_of_four(number):
+        "A trivial handler, returns number if it is a multiple of 4."
+        if number % 4 == 0:
+            return number
+        raise HighAndDry()
+
+    def application(environ, start_response):
+        "The simplest WSGI application, to initialize a WSGIParty instance."
+        start_response('200 OK', [('Content-Type', 'text/plain')])
+        yield 'Hello, world!\n'
+
+    # Connect the handlers defined above.
+    partyline = WSGIParty(application)
+    partyline.connect('number', even)
+    partyline.connect('number', odd)
+    partyline.connect('number', multiple_of_four)
+
+    if __name__ == '__main__':
+        print(repr(partyline.ask_around('number', 1))) # [1]
+        print(repr(partyline.ask_around('number', 2))) # [2]
+        print(repr(partyline.ask_around('number', 4))) # [4, 4]
+
+Running this example produces the lists ``[1]``, ``[2]``, and ``[4, 4]``.  This
+illustration works outside of WSGI just to show wsgi_party's behavior with
+handlers; don't use WSGIParty outside WSGI.
+
+
+.. _handler_limitations:
+
+Handler Limitations
+-------------------
 
 Handlers on the partyline are connected in the same WSGI process and are called
 synchronously one at a time on :meth:`wsgi_party.PartylineOperator.ask_around`.
