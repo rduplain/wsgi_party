@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='wsgi_party',
-    version='0.1b1',
+    version='0.1b2-dev',
     url='http://github.com/rduplain/wsgi_party',
     license='BSD',
     author='Ron DuPlain',
